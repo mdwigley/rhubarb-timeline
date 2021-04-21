@@ -3,7 +3,7 @@
 namespace FriendlyMonster.RhubarbTimeline
 {
     [RequireComponent(typeof(SpriteRenderer))]
-    public class RhubarbSprite : MonoBehaviour
+    public class RhubarbSprite : RhubarbClipBase
     {
         private SpriteRenderer _spriteRenderer;
         [SerializeField] private RhubarbSpriteSet _rhubarbSpriteSet;
@@ -19,7 +19,7 @@ namespace FriendlyMonster.RhubarbTimeline
             _spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
-        public MouthShape MouthShape
+        public override MouthShape MouthShape
         {
             set
             {

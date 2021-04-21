@@ -8,11 +8,11 @@ namespace UnityEngine.Timeline
         MouthShape m_DefaultMouthShape = MouthShape.X;
         MouthShape m_AssignedMouthShape;
 
-        RhubarbSprite m_TrackBinding;
+        RhubarbClipBase m_TrackBinding;
 
         public override void ProcessFrame(Playable playable, FrameData info, object playerData)
         {
-            m_TrackBinding = playerData as RhubarbSprite;
+            m_TrackBinding = playerData as RhubarbClipBase;
 
             if (m_TrackBinding == null)
                 return;

@@ -6,14 +6,23 @@ using UnityEngine.Playables;
 
 namespace FriendlyMonster.RhubarbTimeline
 {
+    public enum RhubarbBindType
+    {
+        Sprite,
+        Material
+    }
+
     public class RhubarbTimelineWindow : EditorWindow
     {
         private string _rhubarbPath;
         private const string rhubarbPathKey = "Rhubarb_RhubarbPath";
 
         private PlayableDirector _timeline;
-        private RhubarbSprite _rhubarbSprite;
         private AudioSource _audioSource;
+
+        private RhubarbBindType _rhubarbBindType;
+        private RhubarbSprite _rhubarbSprite;
+        private RhubarbMaterial _rhubarbMaterial;
 
         private AudioClip _audioClip;
         private bool _isUseDialog;
@@ -56,14 +65,33 @@ namespace FriendlyMonster.RhubarbTimeline
 
                 EditorGUILayout.Separator();
 
-                _timeline = (PlayableDirector) EditorGUILayout.ObjectField("Timeline", _timeline, typeof(PlayableDirector), true);
-                _rhubarbSprite = (RhubarbSprite) EditorGUILayout.ObjectField("Rhubarb Sprite", _rhubarbSprite, typeof(RhubarbSprite), true);
-                _audioSource = (AudioSource) EditorGUILayout.ObjectField("Audio Source", _audioSource, typeof(AudioSource), true);
+                _timeline = (PlayableDirector)EditorGUILayout.ObjectField("Timeline", _timeline, typeof(PlayableDirector), true);
+                _audioSource = (AudioSource)EditorGUILayout.ObjectField("Audio Source", _audioSource, typeof(AudioSource), true);
 
                 EditorGUILayout.Separator();
 
-                _audioClip = (AudioClip) EditorGUILayout.ObjectField("Audio Clip", _audioClip, typeof(AudioClip), false);
-                
+                _rhubarbBindType = (RhubarbBindType)EditorGUILayout.EnumPopup("Binding Type", _rhubarbBindType);
+
+                EditorGUILayout.Separator();
+
+                switch (_rhubarbBindType)
+                {
+                    case RhubarbBindType.Sprite:
+                        {
+                            _rhubarbSprite = (RhubarbSprite)EditorGUILayout.ObjectField("Rhubarb Sprite", _rhubarbSprite, typeof(RhubarbSprite), true);
+                        }
+                        break;
+                    case RhubarbBindType.Material:
+                        {
+                            _rhubarbMaterial = (RhubarbMaterial)EditorGUILayout.ObjectField("Rhubarb Material", _rhubarbMaterial, typeof(RhubarbMaterial), true);
+                        }
+                        break;
+                }
+
+                EditorGUILayout.Separator();
+
+                _audioClip = (AudioClip)EditorGUILayout.ObjectField("Audio Clip", _audioClip, typeof(AudioClip), false);
+
                 _isUseDialog = EditorGUILayout.Toggle("Use Dialog", _isUseDialog);
                 if (_isUseDialog)
                 {
@@ -84,7 +112,7 @@ namespace FriendlyMonster.RhubarbTimeline
 
                 EditorGUILayout.Separator();
 
-                EditorGUI.BeginDisabledGroup(_timeline == null || _rhubarbSprite == null || _audioSource == null || _audioClip == null);
+                EditorGUI.BeginDisabledGroup(_timeline == null || (_rhubarbSprite == null && _rhubarbMaterial == null) || _audioSource == null || _audioClip == null);
                 if (GUILayout.Button("Generate"))
                 {
                     if (_audioClip != null && !IsAudioClipWavOrOgg())
@@ -99,7 +127,8 @@ namespace FriendlyMonster.RhubarbTimeline
                 }
 
                 EditorGUI.EndDisabledGroup();
-            } else
+            }
+            else
             {
                 if (GUILayout.Button("Locate Rhubarb"))
                 {
@@ -117,11 +146,11 @@ namespace FriendlyMonster.RhubarbTimeline
         private void LocateRhubarb()
         {
 #if UNITY_EDITOR_WIN
-            _rhubarbPath = EditorUtility.OpenFilePanel("Open Rhubarb exe", "", "exe");
-    #endif
+            _rhubarbPath = EditorUtility.OpenFilePanel("Open Rhubarb", "", "exe");
+#endif
 #if UNITY_EDITOR_OSX
             _rhubarbPath = EditorUtility.OpenFilePanel("Open Rhubarb", "", "");
-    #endif
+#endif
         }
 
         private bool IsRhubarbPathValid()
@@ -141,20 +170,35 @@ namespace FriendlyMonster.RhubarbTimeline
 
         private void CreateAudio()
         {
-            TimelineAsset timelineAsset = (TimelineAsset) _timeline.playableAsset;
+            TimelineAsset timelineAsset = (TimelineAsset)_timeline.playableAsset;
             AudioTrack audioTrack = timelineAsset.CreateTrack<AudioTrack>(null, "Audio Track");
             _timeline.SetGenericBinding(audioTrack, _audioSource);
             TimelineClip clip = audioTrack.CreateClip<AudioPlayableAsset>();
-            AudioPlayableAsset asset = (AudioPlayableAsset) clip.asset;
+            AudioPlayableAsset asset = (AudioPlayableAsset)clip.asset;
             asset.clip = _audioClip;
             clip.duration = _audioClip.length;
         }
 
         private void CreateRhubarb()
         {
-            TimelineAsset timelineAsset = (TimelineAsset) _timeline.playableAsset;
-            RhubarbPlayableTrack track = timelineAsset.CreateTrack<RhubarbPlayableTrack>(null, "Rhubarb Track");
-            _timeline.SetGenericBinding(track, _rhubarbSprite);
+            TimelineAsset timelineAsset = (TimelineAsset)_timeline.playableAsset;
+            TrackAsset track = null;
+
+            switch (_rhubarbBindType)
+            {
+                case RhubarbBindType.Sprite:
+                    track = timelineAsset.CreateTrack<RhubarbPlayableSpriteTrack>(null, "Rhubarb Sprite Track");
+                    _timeline.SetGenericBinding(track, _rhubarbSprite);
+                    break;
+                case RhubarbBindType.Material:
+                    track = timelineAsset.CreateTrack<RhubarbPlayableMaterialTrack>(null, "Rhubarb Material Track");
+                    _timeline.SetGenericBinding(track, _rhubarbMaterial);
+                    break;
+            }
+
+            if (track == null)
+                return;
+
             string audioPath = Path.Combine(Directory.GetCurrentDirectory(), AssetDatabase.GetAssetPath(_audioClip));
             RhubarbTrack rhubarbTrack = RhubarbEditorProcess.Auto(_rhubarbPath, audioPath, _isUseDialog ? _dialogText : null, _isMouthShapeG, _isMouthShapeH, _isMouthShapeX);
 
@@ -165,7 +209,7 @@ namespace FriendlyMonster.RhubarbTimeline
                 TimelineClip clip = track.CreateClip<RhubarbPlayableClip>();
                 clip.start = Rhubarb.FrameToTime(keyframe.frame);
                 clip.duration = Rhubarb.FrameToTime(nextKeyframe.frame - keyframe.frame);
-                ((RhubarbPlayableClip) clip.asset).template.MouthShape = keyframe.phoneme;
+                ((RhubarbPlayableClip)clip.asset).template.MouthShape = keyframe.phoneme;
             }
         }
     }
